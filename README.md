@@ -18,3 +18,26 @@
 - Redis caching
 
 ## 🧩 Monorepo Structure
+apps/
+  frontend/
+  coordinator-api/
+  share-node-1/
+  share-node-2/
+packages/
+  shared-crypto/
+  shared-types/
+infrastructure/
+docs/
+
+## 🛠 Tech Stack
+- Frontend: React, TypeScript, TailwindCSS
+- Backend: Python, FastAPI
+- Security: AES-256-GCM, JWT, TLS
+- Cloud: Vercel, Railway, Render, Fly.io
+
+## 👥 Team
+- Backend & Security Lead
+- Frontend & Distributed Systems Lead
+
+## 📄 Status
+🚧 Currently under active development (Final Year BCA Project)
