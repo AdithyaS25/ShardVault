@@ -1,6 +1,6 @@
-# 🔐 ShardLock
+# 🔐 ShardVault
 
-**ShardLock** is a distributed secret-sharing based password vault designed to eliminate single-point-of-failure risks in traditional credential storage systems.
+**ShardVault** is a distributed secret-sharing based password vault designed to eliminate single-point-of-failure risks in traditional credential storage systems.
 
 ## 🚀 Key Features
 - AES-256-GCM encryption
