@@ -1,8 +1,5 @@
-# app/core/config.py
-
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
-
 
 class Settings(BaseSettings):
     DATABASE_URL: str
@@ -11,9 +8,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
 
     model_config = ConfigDict(
-        env_file=".env",
-        extra="ignore"
-    )
-
+    env_file=".env",
+    env_file_encoding="utf-8"
+)
 
 settings = Settings()
