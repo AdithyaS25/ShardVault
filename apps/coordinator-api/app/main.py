@@ -1,20 +1,46 @@
 from fastapi import FastAPI
-from app.core.database import engine, Base
-from app.models import user
-from app.auth.routes import router as auth_router
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
 
-app = FastAPI(title="ShardLock Coordinator API")
+from app.core.database import engine, Base
+from app.models import user  # ensure models are registered
+from app.auth.routes import router as auth_router
 
+
+# Disable default docs to customize Swagger
+app = FastAPI(
+    title="ShardLock Coordinator API",
+    docs_url=None,
+    redoc_url=None
+)
+
+# Include routers
 app.include_router(auth_router)
+
+# CORS Configuration (Required for HttpOnly cookies)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4000"],  # frontend later
-    allow_credentials=True,  # IMPORTANT
+    allow_origins=["http://localhost:4000"],  # frontend URL
+    allow_credentials=True,  # REQUIRED for cookies
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
+# Custom Swagger UI with Dark Mode
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui():
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title="ShardLock API Docs",
+        swagger_ui_parameters={
+            "defaultModelsExpandDepth": -1,
+            "theme": "dark"  # Enable dark mode
+        },
+    )
+
+
+# Database startup
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
@@ -22,5 +48,5 @@ async def startup():
 
 
 @app.get("/")
-def root():
+async def root():
     return {"message": "ShardLock Coordinator Running"}
