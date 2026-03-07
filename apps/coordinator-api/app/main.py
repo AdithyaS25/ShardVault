@@ -6,6 +6,7 @@ from app.core.database import engine, Base
 from app.models import user  # ensure models are registered
 from app.auth.routes import router as auth_router
 from app.crypto.routes import router as crypto_router
+from app.shamir.routes import router as shamir_router
 
 
 # Disable default docs to customize Swagger
@@ -18,6 +19,8 @@ app = FastAPI(
 # Include routers
 app.include_router(auth_router)
 app.include_router(crypto_router, prefix="/api/v1")
+app.include_router(shamir_router, prefix="/api/v1")
+
 
 # CORS Configuration (Required for HttpOnly cookies)
 app.add_middleware(
