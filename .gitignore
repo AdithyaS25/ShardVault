@@ -10,3 +10,13 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# SQLite databases
+*.db
+
+# Node env files (use .env.example as template instead)
+.env.node1
+.env.node2
+.env.node3
+.env.node4
+.env
