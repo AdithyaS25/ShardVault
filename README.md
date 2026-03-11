@@ -1,6 +1,6 @@
-# 🔐 ShardLock
+# 🔐 ShardVault
 
-**ShardLock** is a distributed secret-sharing based password vault designed to eliminate single-point-of-failure risks in traditional credential storage systems.
+**ShardVault** is a distributed secret-sharing based password vault designed to eliminate single-point-of-failure risks in traditional credential storage systems.
 
 ## 🚀 Key Features
 - AES-256-GCM encryption
@@ -16,18 +16,6 @@
 - React + TypeScript Frontend
 - PostgreSQL (Supabase)
 - Redis caching
-
-## 🧩 Monorepo Structure
-apps/
-  frontend/
-  coordinator-api/
-  share-node-1/
-  share-node-2/
-packages/
-  shared-crypto/
-  shared-types/
-infrastructure/
-docs/
 
 ## 🛠 Tech Stack
 - Frontend: React, TypeScript, TailwindCSS
