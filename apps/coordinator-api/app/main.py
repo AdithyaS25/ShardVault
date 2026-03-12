@@ -1,38 +1,37 @@
+# ── FULL updated main.py for reference ───────────────────────────────────────
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 
 from app.core.database import engine, Base
-from app.models import user  # ensure models are registered
+from app.models import user, vault_entry          # CHANGED: added vault_entry
 from app.auth.routes import router as auth_router
 from app.crypto.routes import router as crypto_router
 from app.shamir.routes import router as shamir_router
+from app.vault.routes import router as vault_router  # NEW
 
 
-# Disable default docs to customize Swagger
 app = FastAPI(
     title="ShardLock Coordinator API",
     docs_url=None,
     redoc_url=None
 )
 
-# Include routers
 app.include_router(auth_router)
 app.include_router(crypto_router, prefix="/api/v1")
 app.include_router(shamir_router, prefix="/api/v1")
+app.include_router(vault_router,  prefix="/api/v1")   # NEW
 
-
-# CORS Configuration (Required for HttpOnly cookies)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4000"],  # frontend URL
-    allow_credentials=True,  # REQUIRED for cookies
+    allow_origins=["http://localhost:4000"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# Custom Swagger UI with Dark Mode
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui():
     return get_swagger_ui_html(
@@ -40,12 +39,11 @@ async def custom_swagger_ui():
         title="ShardLock API Docs",
         swagger_ui_parameters={
             "defaultModelsExpandDepth": -1,
-            "theme": "dark"  # Enable dark mode
+            "theme": "dark"
         },
     )
 
 
-# Database startup
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
