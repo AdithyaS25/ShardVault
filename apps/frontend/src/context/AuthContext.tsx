@@ -1,58 +1,54 @@
-/**
- * context/AuthContext.tsx — ShardVault Frontend
- * ================================================
- * Global auth state. Access token lives ONLY here in memory.
- * On mount: silently tries /auth/refresh (HttpOnly cookie flow).
- * Exposes: user, isAuthenticated, isLoading, login, logout
- */
-
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react"
-import { authApi } from "@/api/auth"
-import { tokenStore } from "@/api/client"
-import type { MeResponse } from "@/types"
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { authApi } from '@/api/auth'
+import { tokenStore } from '@/api/client'
+import type { MeResponse as User } from '@/types'
 
 interface AuthContextValue {
-  user: MeResponse | null
-  accessToken: string | null
+  user: User | null
   isAuthenticated: boolean
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
-  refreshUser: () => Promise<void>
+  register: (email: string, password: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<MeResponse | null>(null)
-  const [accessToken, setAccessToken] = useState<string | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // On mount — silently refresh token if cookie exists
+  // ── Restore session on mount via refresh cookie ──────────────────
   useEffect(() => {
-    const tryRestore = async () => {
+    const restore = async () => {
       try {
-        const res = await authApi.refresh()
-        tokenStore.set(res.access_token)
-        setAccessToken(res.access_token)
+        const { access_token } = await authApi.refresh()
+        tokenStore.set(access_token)
         const me = await authApi.me()
         setUser(me)
       } catch {
-        // No valid cookie — user needs to log in
         tokenStore.clear()
         setUser(null)
-        setAccessToken(null)
       } finally {
         setIsLoading(false)
       }
     }
-    tryRestore()
+    restore()
+  }, [])
+
+  // ── Forced logout when 401 after refresh fails ───────────────────
+  useEffect(() => {
+    const handler = () => {
+      tokenStore.clear()
+      setUser(null)
+    }
+    window.addEventListener('auth:expired', handler)
+    return () => window.removeEventListener('auth:expired', handler)
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await authApi.login({ email, password })
-    tokenStore.set(res.access_token)
-    setAccessToken(res.access_token)
+    const { access_token } = await authApi.login({ email, password })
+    tokenStore.set(access_token)
     const me = await authApi.me()
     setUser(me)
   }, [])
@@ -60,43 +56,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     try {
       await authApi.logout()
-    } catch {
-      // Proceed regardless
     } finally {
       tokenStore.clear()
-      setAccessToken(null)
       setUser(null)
     }
   }, [])
 
-  const refreshUser = useCallback(async () => {
-    try {
-      const me = await authApi.me()
-      setUser(me)
-    } catch {
-      setUser(null)
-    }
-  }, [])
+  const register = useCallback(async (email: string, password: string) => {
+    await authApi.register({ email, password })
+    // Auto-login after successful registration
+    await login(email, password)
+  }, [login])
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        accessToken,
-        isAuthenticated: !!user && !!accessToken,
-        isLoading,
-        login,
-        logout,
-        refreshUser,
-      }}
-    >
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated: !!user,
+      isLoading,
+      login,
+      logout,
+      register,
+    }}>
       {children}
     </AuthContext.Provider>
   )
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider")
+  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>')
   return ctx
 }
