@@ -81,4 +81,3 @@ async def startup():
 @app.get("/")
 async def root():
     return {"message": "ShardLock Coordinator Running"}
-    
