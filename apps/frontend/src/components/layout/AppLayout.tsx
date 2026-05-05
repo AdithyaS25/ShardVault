@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   ShieldCheck, Vault, LogOut, Menu, X,
   Settings, LayoutDashboard, ChevronRight,
+  Activity, ShieldAlert,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { Badge } from '@/components/ui/badge'
@@ -10,9 +11,10 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const NAV = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
-  { to: '/vault',     icon: Vault,           label: 'Vault'    },
-  { to: '/settings',  icon: Settings,        label: 'Settings' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Overview'     },
+  { to: '/vault',     icon: Vault,           label: 'Vault'        },
+  { to: '/audit',     icon: Activity,        label: 'Activity Log' },
+  { to: '/settings',  icon: Settings,        label: 'Settings'     },
 ]
 
 export default function AppLayout() {
@@ -85,6 +87,28 @@ export default function AppLayout() {
               )}
             </NavLink>
           ))}
+
+          {/* Admin-only link */}
+          {user?.role === 'admin' && (
+            <NavLink
+              to="/admin"
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) => cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all duration-150 group',
+                isActive
+                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+              )}
+            >
+              {({ isActive }) => (
+                <>
+                  <ShieldAlert className={cn('w-4 h-4 shrink-0', isActive ? 'text-cyan-400' : '')} />
+                  <span className="flex-1 font-medium">Admin</span>
+                  {isActive && <ChevronRight className="w-3 h-3 text-cyan-400/60" />}
+                </>
+              )}
+            </NavLink>
+          )}
         </nav>
 
         {/* User section */}

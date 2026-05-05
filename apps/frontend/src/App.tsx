@@ -8,6 +8,10 @@ import LoginPage from '@/pages/LoginPage'
 import RegisterPage from '@/pages/RegisterPage'
 import DashboardPage from '@/pages/DashboardPage'
 import VaultPage from '@/pages/VaultPage'
+import AdminPage from '@/pages/AdminPage'
+import AuditPage from '@/pages/AuditPage'
+
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,14 +35,15 @@ export default function App() {
               <Route element={<AppLayout />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/vault"     element={<VaultPage />} />
+                <Route path="/audit" element={<AuditPage />} />
               </Route>
             </Route>
 
             {/* Admin — Module 5 */}
             <Route element={<ProtectedRoute requireAdmin />}>
-              <Route element={<AppLayout />}>
-                {/* <Route path="/admin" element={<AdminPage />} /> */}
-              </Route>
+            <Route element={<AppLayout />}>
+            <Route path="/admin" element={<AdminPage />} />
+            </Route>
             </Route>
 
             <Route path="*" element={<NotFound />} />
@@ -48,3 +53,6 @@ export default function App() {
     </QueryClientProvider>
   )
 }
+
+
+
