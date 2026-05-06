@@ -76,10 +76,10 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
     site_name: '', username: '', label: '',
     plaintext_password: '', master_password: '',
   })
-  const [showPass, setShowPass]   = useState(false)
+  const [showPass, setShowPass]     = useState(false)
   const [showMaster, setShowMaster] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError]         = useState<string | null>(null)
+  const [isLoading, setIsLoading]   = useState(false)
+  const [error, setError]           = useState<string | null>(null)
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -120,7 +120,8 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      {/* Fix 1 — block backdrop close while submitting */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={isLoading ? undefined : onClose} />
       <div className="relative w-full max-w-md bg-card border border-border rounded-xl shadow-2xl animate-fade-in">
 
         {/* Header */}
@@ -131,7 +132,11 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
               Encrypted with AES-256-GCM · Split into 4 Shamir shares
             </p>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button
+            onClick={isLoading ? undefined : onClose}
+            className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+            disabled={isLoading}
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -251,12 +256,12 @@ interface RetrieveModalProps {
 
 function RetrieveModal({ entry, onClose }: RetrieveModalProps) {
   const [masterPassword, setMasterPassword] = useState('')
-  const [showMaster, setShowMaster]   = useState(false)
-  const [isLoading, setIsLoading]     = useState(false)
-  const [error, setError]             = useState<string | null>(null)
-  const [plaintext, setPlaintext]     = useState<string | null>(null)
-  const [showPlain, setShowPlain]     = useState(false)
-  const [copied, setCopied]           = useState(false)
+  const [showMaster, setShowMaster] = useState(false)
+  const [isLoading, setIsLoading]   = useState(false)
+  const [error, setError]           = useState<string | null>(null)
+  const [plaintext, setPlaintext]   = useState<string | null>(null)
+  const [showPlain, setShowPlain]   = useState(false)
+  const [copied, setCopied]         = useState(false)
 
   const handleRetrieve = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -291,7 +296,8 @@ function RetrieveModal({ entry, onClose }: RetrieveModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      {/* Fix 2 — block backdrop close while reconstructing or showing plaintext */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={isLoading ? undefined : onClose} />
       <div className="relative w-full max-w-sm bg-card border border-border rounded-xl shadow-2xl animate-fade-in">
 
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -299,7 +305,11 @@ function RetrieveModal({ entry, onClose }: RetrieveModalProps) {
             <h2 className="font-display font-bold text-sm">{entry.site_name}</h2>
             <p className="text-xs text-muted-foreground font-mono">{entry.username}</p>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <button
+            onClick={isLoading ? undefined : onClose}
+            className="text-muted-foreground hover:text-foreground disabled:opacity-40"
+            disabled={isLoading}
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -339,7 +349,7 @@ function RetrieveModal({ entry, onClose }: RetrieveModalProps) {
               </div>
 
               <div className="flex gap-2">
-                <Button type="button" variant="outline" size="sm" className="flex-1" onClick={onClose}>Cancel</Button>
+                <Button type="button" variant="outline" size="sm" className="flex-1" onClick={onClose} disabled={isLoading}>Cancel</Button>
                 <Button type="submit" size="sm" className="flex-1" disabled={isLoading}>
                   {isLoading ? (
                     <span className="flex items-center gap-1.5">
@@ -411,7 +421,8 @@ function DeleteConfirm({ entry, onClose, onDeleted }: DeleteConfirmProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      {/* Fix 3 — block backdrop close while deleting */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={isLoading ? undefined : onClose} />
       <div className="relative w-full max-w-sm bg-card border border-border rounded-xl shadow-2xl animate-fade-in p-6 space-y-4">
         <div className="space-y-1">
           <h2 className="font-display font-bold text-base">Delete vault entry?</h2>
@@ -449,12 +460,9 @@ interface EntryCardProps {
 function EntryCard({ entry, onRetrieve, onDelete }: EntryCardProps) {
   return (
     <div className="glass rounded-lg p-4 flex items-center gap-4 group hover:border-border/80 transition-all duration-150 animate-fade-in">
-      {/* Avatar */}
       <div className="w-9 h-9 rounded-lg bg-secondary border border-border flex items-center justify-center shrink-0 font-mono text-xs font-bold text-muted-foreground">
         {getInitials(entry.site_name)}
       </div>
-
-      {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className="font-medium text-sm truncate">{entry.site_name}</p>
@@ -464,13 +472,9 @@ function EntryCard({ entry, onRetrieve, onDelete }: EntryCardProps) {
         </div>
         <p className="text-xs text-muted-foreground font-mono truncate">{entry.username}</p>
       </div>
-
-      {/* Time */}
       <p className="text-xs text-muted-foreground font-mono shrink-0 hidden sm:block">
         {timeAgo(entry.created_at)}
       </p>
-
-      {/* Actions */}
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <Button
           variant="ghost"
@@ -498,15 +502,15 @@ function EntryCard({ entry, onRetrieve, onDelete }: EntryCardProps) {
 // ── Main VaultPage ────────────────────────────────────────────────────────────
 
 export default function VaultPage() {
-  const [entries, setEntries]           = useState<VaultEntryMeta[]>([])
-  const [total, setTotal]               = useState(0)
-  const [isLoading, setIsLoading]       = useState(true)
-  const [error, setError]               = useState<string | null>(null)
-  const [search, setSearch]             = useState('')
-  const [showCreate, setShowCreate]     = useState(false)
+  const [entries, setEntries]             = useState<VaultEntryMeta[]>([])
+  const [total, setTotal]                 = useState(0)
+  const [isLoading, setIsLoading]         = useState(true)
+  const [error, setError]                 = useState<string | null>(null)
+  const [search, setSearch]               = useState('')
+  const [showCreate, setShowCreate]       = useState(false)
   const [retrieveEntry, setRetrieveEntry] = useState<VaultEntryMeta | null>(null)
-  const [deleteEntry, setDeleteEntry]   = useState<VaultEntryMeta | null>(null)
-  const [nodeDown, setNodeDown]         = useState(false)
+  const [deleteEntry, setDeleteEntry]     = useState<VaultEntryMeta | null>(null)
+  const [nodeDown, setNodeDown]           = useState(false)
 
   const fetchEntries = useCallback(async () => {
     setIsLoading(true)
@@ -551,10 +555,8 @@ export default function VaultPage() {
         </Button>
       </div>
 
-      {/* Node down banner */}
       {nodeDown && <NodeUnavailableBanner />}
 
-      {/* Search */}
       {entries.length > 0 && (
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -567,7 +569,6 @@ export default function VaultPage() {
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -575,7 +576,6 @@ export default function VaultPage() {
         </div>
       )}
 
-      {/* Content */}
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map(i => (
@@ -601,7 +601,6 @@ export default function VaultPage() {
         </div>
       )}
 
-      {/* Modals */}
       {showCreate && (
         <CreateModal
           onClose={() => setShowCreate(false)}
