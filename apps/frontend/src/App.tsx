@@ -10,6 +10,7 @@ import DashboardPage from '@/pages/DashboardPage'
 import VaultPage from '@/pages/VaultPage'
 import AdminPage from '@/pages/AdminPage'
 import AuditPage from '@/pages/AuditPage'
+import SettingsPage from '@/pages/SettingsPage'
 
 
 
@@ -36,6 +37,7 @@ export default function App() {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/vault"     element={<VaultPage />} />
                 <Route path="/audit" element={<AuditPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
 
