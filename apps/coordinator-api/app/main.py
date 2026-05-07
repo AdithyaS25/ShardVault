@@ -1,30 +1,9 @@
 """
-main.py — DIFF from vault-management version
-=============================================
-ONE change only:
-
-ADDED: audit router import and registration
-
---- existing router block ---
-from app.vault.routes import router as vault_router
-
-app.include_router(auth_router)
-app.include_router(crypto_router, prefix="/api/v1")
-app.include_router(shamir_router, prefix="/api/v1")
-app.include_router(vault_router,  prefix="/api/v1")
-
-+++ replace with +++
-from app.vault.routes import router as vault_router
-from app.audit.routes import router as audit_router      # NEW
-
-app.include_router(auth_router)
-app.include_router(crypto_router, prefix="/api/v1")
-app.include_router(shamir_router, prefix="/api/v1")
-app.include_router(vault_router,  prefix="/api/v1")
-app.include_router(audit_router,  prefix="/api/v1")      # NEW
+main.py — ShardLock Coordinator API
+=====================================
+DIFF from audit-logging version:
+  ADDED: admin router import and registration
 """
-
-# ── FULL updated main.py for reference ───────────────────────────────────────
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,7 +15,8 @@ from app.auth.routes import router as auth_router
 from app.crypto.routes import router as crypto_router
 from app.shamir.routes import router as shamir_router
 from app.vault.routes import router as vault_router
-from app.audit.routes import router as audit_router          # NEW
+from app.audit.routes import router as audit_router
+from app.admin.routes import router as admin_router          # NEW
 
 
 app = FastAPI(
@@ -49,7 +29,8 @@ app.include_router(auth_router)
 app.include_router(crypto_router, prefix="/api/v1")
 app.include_router(shamir_router, prefix="/api/v1")
 app.include_router(vault_router,  prefix="/api/v1")
-app.include_router(audit_router,  prefix="/api/v1")          # NEW
+app.include_router(audit_router,  prefix="/api/v1")
+app.include_router(admin_router,  prefix="/api/v1")          # NEW
 
 app.add_middleware(
     CORSMiddleware,
@@ -81,4 +62,3 @@ async def startup():
 @app.get("/")
 async def root():
     return {"message": "ShardLock Coordinator Running"}
-    

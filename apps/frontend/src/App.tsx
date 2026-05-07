@@ -13,7 +13,6 @@ import AuditPage from '@/pages/AuditPage'
 import SettingsPage from '@/pages/SettingsPage'
 
 
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: 1, staleTime: 30_000 },

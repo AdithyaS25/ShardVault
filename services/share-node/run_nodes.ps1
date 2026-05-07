@@ -1,27 +1,31 @@
 # run_nodes.ps1 — ShardLock Share Nodes
-# Run from services/share-node/
+# Run from REPO ROOT: .\services\share-node\run_nodes.ps1
+# Each node gets its own PowerShell window with env vars injected directly.
+# DO NOT use .env file copying — all nodes would read the last-written file.
+
+$NodeDir = "$PSScriptRoot"
 
 # Node 1 — port 8001
 Start-Process powershell -ArgumentList "-NoExit", "-Command", `
-    "cd '$PWD'; .venv\Scripts\Activate.ps1; `$env:NODE_ID='node-1'; `$env:PORT='8001'; `$env:DATABASE_URL='sqlite+aiosqlite:///./node1.db'; `$env:INTERNAL_SERVICE_TOKEN='shardlock-internal-dev-token-change-in-prod'; `$env:DEBUG='true'; uvicorn main:app --port 8001 --reload"
+    "cd '$NodeDir'; .\.venv\Scripts\Activate.ps1; `$env:NODE_ID='node-1'; `$env:PORT='8001'; `$env:DATABASE_URL='sqlite+aiosqlite:///./node1.db'; `$env:INTERNAL_SERVICE_TOKEN='shardlock-internal-dev-token-change-in-prod'; `$env:DEBUG='true'; uvicorn main:app --port 8001 --reload"
 
 Start-Sleep -Seconds 2
 
 # Node 2 — port 8002
 Start-Process powershell -ArgumentList "-NoExit", "-Command", `
-    "cd '$PWD'; .venv\Scripts\Activate.ps1; `$env:NODE_ID='node-2'; `$env:PORT='8002'; `$env:DATABASE_URL='sqlite+aiosqlite:///./node2.db'; `$env:INTERNAL_SERVICE_TOKEN='shardlock-internal-dev-token-change-in-prod'; `$env:DEBUG='true'; uvicorn main:app --port 8002 --reload"
+    "cd '$NodeDir'; .\.venv\Scripts\Activate.ps1; `$env:NODE_ID='node-2'; `$env:PORT='8002'; `$env:DATABASE_URL='sqlite+aiosqlite:///./node2.db'; `$env:INTERNAL_SERVICE_TOKEN='shardlock-internal-dev-token-change-in-prod'; `$env:DEBUG='true'; uvicorn main:app --port 8002 --reload"
 
 Start-Sleep -Seconds 2
 
 # Node 3 — port 8003
 Start-Process powershell -ArgumentList "-NoExit", "-Command", `
-    "cd '$PWD'; .venv\Scripts\Activate.ps1; `$env:NODE_ID='node-3'; `$env:PORT='8003'; `$env:DATABASE_URL='sqlite+aiosqlite:///./node3.db'; `$env:INTERNAL_SERVICE_TOKEN='shardlock-internal-dev-token-change-in-prod'; `$env:DEBUG='true'; uvicorn main:app --port 8003 --reload"
+    "cd '$NodeDir'; .\.venv\Scripts\Activate.ps1; `$env:NODE_ID='node-3'; `$env:PORT='8003'; `$env:DATABASE_URL='sqlite+aiosqlite:///./node3.db'; `$env:INTERNAL_SERVICE_TOKEN='shardlock-internal-dev-token-change-in-prod'; `$env:DEBUG='true'; uvicorn main:app --port 8003 --reload"
 
 Start-Sleep -Seconds 2
 
 # Node 4 — port 8004
 Start-Process powershell -ArgumentList "-NoExit", "-Command", `
-    "cd '$PWD'; .venv\Scripts\Activate.ps1; `$env:NODE_ID='node-4'; `$env:PORT='8004'; `$env:DATABASE_URL='sqlite+aiosqlite:///./node4.db'; `$env:INTERNAL_SERVICE_TOKEN='shardlock-internal-dev-token-change-in-prod'; `$env:DEBUG='true'; uvicorn main:app --port 8004 --reload"
+    "cd '$NodeDir'; .\.venv\Scripts\Activate.ps1; `$env:NODE_ID='node-4'; `$env:PORT='8004'; `$env:DATABASE_URL='sqlite+aiosqlite:///./node4.db'; `$env:INTERNAL_SERVICE_TOKEN='shardlock-internal-dev-token-change-in-prod'; `$env:DEBUG='true'; uvicorn main:app --port 8004 --reload"
 
 Write-Host ""
 Write-Host "All 4 share nodes starting..." -ForegroundColor Green
