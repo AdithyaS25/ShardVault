@@ -21,3 +21,11 @@ Thumbs.db
 .env.node4
 .env
 
+node_modules/
+**/node_modules/
+
+.venv/
+**/.venv/
+
+dist/
+build/
