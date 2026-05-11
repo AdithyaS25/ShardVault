@@ -6,11 +6,12 @@ class Settings(BaseSettings):
     # Existing
     DATABASE_URL                : str
     JWT_SECRET                  : str
+    DEBUG                       : bool = False
     JWT_ALGORITHM               : str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES : int = 15
 
     # Share nodes (added in feature/distributed-share-storage)
-    INTERNAL_SERVICE_TOKEN      : str = "change-me-in-production"
+    INTERNAL_SERVICE_TOKEN      : str = "c2bf4f46dca8096bf95d2e0e9d8e7f8b136122f02f47ce23399076a75e5ea160"
     SHARE_NODE_1_URL            : str = "http://localhost:8001"
     SHARE_NODE_2_URL            : str = "http://localhost:8002"
     SHARE_NODE_3_URL            : str = "http://localhost:8003"

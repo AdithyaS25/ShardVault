@@ -1,18 +1,3 @@
-"""
-core/dependencies.py — Share Node Service
-==========================================
-Authentication for internal service communication.
-
-Per §2.4: all share node endpoints are authenticated via
-an internal service token — NOT user JWTs.
-
-The coordinator sends this token in the Authorization header:
-  Authorization: Bearer <INTERNAL_SERVICE_TOKEN>
-
-This token is a shared secret between coordinator and all share nodes.
-It is set via environment variable — never hardcoded.
-"""
-
 import secrets
 
 from fastapi import Depends, HTTPException, status

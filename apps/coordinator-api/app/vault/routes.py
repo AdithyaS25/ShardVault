@@ -1,31 +1,13 @@
-"""
-vault/routes.py — ShardLock Coordinator API
-============================================
-Vault management endpoints. Implements §1.5 Vault Interaction Flow.
-
-Registered in main.py as:
-    from app.vault.routes import router as vault_router
-    app.include_router(vault_router, prefix="/api/v1")
-
-Endpoints:
-    POST   /api/v1/vault          — encrypt, split, distribute → create entry
-    GET    /api/v1/vault          — paginated metadata list (no passwords)
-    GET    /api/v1/vault/{id}     — reconstruct and return plaintext password
-    DELETE /api/v1/vault/{id}     — delete shares + metadata
-
-Auth: all endpoints require Bearer JWT (get_current_user dependency).
-Master password: sent in request body, used only to derive AES key,
-                 never logged or stored anywhere.
-"""
-
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, get_current_user
 from app.core.share_nodes import get_orchestrator
 from app.models.user import User
+from app.models.vault_entry import VaultEntry
 from app.services.share_node_client import ShareNodeOrchestrator, ThresholdNotMetError, ShareNodeError
 from app.services.vault_service import (
     create_vault_entry,
@@ -61,13 +43,13 @@ async def create_vault(
     current_user: User = Depends(get_current_user),
     orchestrator: ShareNodeOrchestrator = Depends(get_orchestrator),
 ):
-    """
-    Full vault creation flow:
-      1. AES-256-GCM encrypt the plaintext password
-      2. Shamir-split the encrypted payload into N=4 shares
-      3. Distribute shares to 4 independent share nodes
-      4. Store metadata (NOT the payload) in vault_entries
-    """
+    # ✅ FIX: Eagerly capture all fields from current_user BEFORE any try/except.
+    # After a ShareNodeError triggers a DB ROLLBACK, SQLAlchemy expires all ORM
+    # objects. Accessing current_user.id inside the except block then fires a
+    # synchronous lazy reload outside the async greenlet context → MissingGreenlet.
+    user_id = current_user.id
+    client_ip = request.client.host
+
     try:
         vault_entry = await create_vault_entry(
             db=db,
@@ -80,12 +62,7 @@ async def create_vault(
             label=payload.label,
         )
 
-        await log_action(
-            db,
-            user_id=current_user.id,
-            action="VAULT_CREATED",
-            ip=request.client.host,
-        )
+        await log_action(db, user_id=user_id, action="VAULT_CREATED", ip=client_ip)
 
         return VaultCreateResponse(
             success=True,
@@ -97,12 +74,8 @@ async def create_vault(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     except ShareNodeError as e:
-        await log_action(
-            db,
-            user_id=current_user.id,
-            action="VAULT_CREATE_FAILED",
-            ip=request.client.host,
-        )
+        # user_id is already captured above — safe to use after ROLLBACK
+        await log_action(db, user_id=user_id, action="VAULT_CREATE_FAILED", ip=client_ip)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Share distribution failed: {e.message}",
@@ -122,10 +95,6 @@ async def list_vaults(
     db          : AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Returns paginated vault metadata for the authenticated user.
-    No passwords, no encrypted payloads — site names and usernames only.
-    """
     entries, total = await list_vault_entries(
         db=db,
         user=current_user,
@@ -150,24 +119,17 @@ async def list_vaults(
     summary="Retrieve vault entry — triggers Shamir reconstruction",
 )
 async def get_vault(
-    vault_id    : UUID,
+    vault_id       : UUID,
     master_password: str = Query(..., description="Master password to decrypt"),
-    request     : Request = None,
-    db          : AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    orchestrator: ShareNodeOrchestrator = Depends(get_orchestrator),
+    request        : Request = None,
+    db             : AsyncSession = Depends(get_db),
+    current_user   : User = Depends(get_current_user),
+    orchestrator   : ShareNodeOrchestrator = Depends(get_orchestrator),
 ):
-    """
-    Full reconstruction flow:
-      1. Fetch vault metadata from DB
-      2. Collect K=3 shares from share nodes
-      3. Reconstruct encrypted_payload via Shamir interpolation
-      4. Decrypt with AES-256-GCM using derived key
-      5. Return plaintext — never stored
+    # ✅ FIX: Same pattern — capture before try/except
+    user_id = current_user.id
+    client_ip = request.client.host if request else "unknown"
 
-    master_password is sent as a query param here for simplicity.
-    In production consider moving it to a POST body or header.
-    """
     try:
         plaintext = await retrieve_vault_entry(
             db=db,
@@ -177,20 +139,12 @@ async def get_vault(
             orchestrator=orchestrator,
         )
 
-        # Fetch metadata for response
-        from sqlalchemy import select
-        from app.models.vault_entry import VaultEntry
         result = await db.execute(
             select(VaultEntry).where(VaultEntry.id == vault_id)
         )
         vault_entry = result.scalar_one()
 
-        await log_action(
-            db,
-            user_id=current_user.id,
-            action="VAULT_RETRIEVED",
-            ip=request.client.host if request else "unknown",
-        )
+        await log_action(db, user_id=user_id, action="VAULT_RETRIEVED", ip=client_ip)
 
         return VaultRetrieveResponse(
             success=True,
@@ -205,25 +159,14 @@ async def get_vault(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
     except ThresholdNotMetError as e:
-        await log_action(
-            db,
-            user_id=current_user.id,
-            action="VAULT_RECONSTRUCT_FAILED",
-            ip=request.client.host if request else "unknown",
-        )
+        await log_action(db, user_id=user_id, action="VAULT_RECONSTRUCT_FAILED", ip=client_ip)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Reconstruction failed: only {e.available}/{e.required} share nodes responded",
         )
 
     except Exception:
-        # Covers InvalidTag (wrong master password) and other crypto errors
-        await log_action(
-            db,
-            user_id=current_user.id,
-            action="VAULT_DECRYPT_FAILED",
-            ip=request.client.host if request else "unknown",
-        )
+        await log_action(db, user_id=user_id, action="VAULT_DECRYPT_FAILED", ip=client_ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Decryption failed: invalid master password or tampered data",
@@ -244,12 +187,10 @@ async def delete_vault(
     current_user: User = Depends(get_current_user),
     orchestrator: ShareNodeOrchestrator = Depends(get_orchestrator),
 ):
-    """
-    Deletion flow:
-      1. Best-effort delete shares from all N=4 nodes
-      2. Delete metadata from vault_entries table
-    Node failures are logged but do not block DB deletion.
-    """
+    # ✅ FIX: Same pattern
+    user_id = current_user.id
+    client_ip = request.client.host
+
     try:
         await delete_vault_entry(
             db=db,
@@ -258,12 +199,7 @@ async def delete_vault(
             orchestrator=orchestrator,
         )
 
-        await log_action(
-            db,
-            user_id=current_user.id,
-            action="VAULT_DELETED",
-            ip=request.client.host,
-        )
+        await log_action(db, user_id=user_id, action="VAULT_DELETED", ip=client_ip)
 
         return VaultDeleteResponse(
             success=True,

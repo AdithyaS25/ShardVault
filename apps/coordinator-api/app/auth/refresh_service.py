@@ -7,9 +7,6 @@ from app.core.security import create_refresh_token
 REFRESH_EXPIRY_DAYS = 7
 
 
-# ---------------------------
-# STORE REFRESH TOKEN
-# ---------------------------
 async def store_refresh_token(db: AsyncSession, user_id):
     token = create_refresh_token()
 
@@ -20,15 +17,12 @@ async def store_refresh_token(db: AsyncSession, user_id):
     )
 
     db.add(refresh)
-    await db.commit()
-    await db.refresh(refresh)
+    await db.flush()  # writes to DB within current transaction, no commit
+    await db.refresh(refresh)  # safe to call after flush
 
     return refresh
 
 
-# ---------------------------
-# REVOKE REFRESH TOKEN
-# ---------------------------
 async def revoke_refresh_token(db: AsyncSession, token: str):
     result = await db.execute(
         select(RefreshToken).where(RefreshToken.token == token)
@@ -37,12 +31,9 @@ async def revoke_refresh_token(db: AsyncSession, token: str):
 
     if refresh:
         refresh.revoked = True
-        await db.commit()
+        # no commit — get_db commits on request exit
 
 
-# ---------------------------
-# VALIDATE REFRESH TOKEN
-# ---------------------------
 async def validate_refresh_token(db: AsyncSession, token: str):
     result = await db.execute(
         select(RefreshToken).where(
