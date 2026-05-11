@@ -1,26 +1,3 @@
-"""
-auth/routes.py — ShardLock Coordinator API
-==========================================
-Authentication routes: register, login, refresh, logout, me, admin.
-
-FIXES APPLIED:
-  1. Removed duplicate get_db() — now imported from core.dependencies.
-     Having it defined locally AND in dependencies caused two separate
-     DB sessions to be created per request in some cases.
-
-  2. Fixed logout user_id capture — the original code revoked the token
-     before reading user_id from it, then logged user_id=None for every
-     logout even for authenticated users. Now reads user_id first.
-
-  3. Updated response_model annotations to use correct schemas
-     (LoginResponse, RegisterResponse, LogoutResponse) so Swagger docs
-     accurately reflect what the API returns.
-
-  4. Added encryption_salt generation at registration — required by the
-     Encryption Engine (§2.2). Salt is generated here and stored in the
-     users table so vault operations can derive the AES key later.
-"""
-
 from fastapi import APIRouter, Depends, HTTPException, status, Cookie, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -68,12 +45,11 @@ async def register(
         email=payload.email,
         password_hash=hash_password(payload.password),
         role="user",
-        encryption_salt=generate_salt(),  # §2.2 — generated once, stored permanently
+        encryption_salt=generate_salt(),
     )
 
     db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
+    # get_db commits on exit
 
     return RegisterResponse(success=True, message="User registered successfully")
 
@@ -104,12 +80,13 @@ async def login(
         key="refresh_token",
         value=refresh.token,
         httponly=True,
-        secure=False,       # Set True in production (HTTPS)
+        secure=False,
         samesite="lax",
         max_age=7 * 24 * 60 * 60,
     )
 
     await log_action(db, user_id=user.id, action="LOGIN_SUCCESS", ip=request.client.host)
+    # get_db commits everything (refresh token + audit log) together on exit
 
     return LoginResponse(access_token=access_token)
 
@@ -139,7 +116,6 @@ async def refresh_token(
             detail="Invalid or expired refresh token",
         )
 
-    # Rotate: revoke old, issue new
     await revoke_refresh_token(db, refresh_token)
     new_refresh = await store_refresh_token(db, refresh.user_id)
     new_access  = create_access_token({"sub": str(refresh.user_id)})
@@ -167,15 +143,9 @@ async def logout(
     refresh_token: str = Cookie(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    FIX: Read user_id from the refresh token BEFORE revoking it.
-    Original code revoked first, then had no token to read user_id from,
-    so every logout was logged with user_id=None.
-    """
     user_id = None
 
     if refresh_token:
-        # Read user_id first, then revoke
         refresh = await validate_refresh_token(db, refresh_token)
         if refresh:
             user_id = refresh.user_id
@@ -199,14 +169,14 @@ async def get_me(current_user: User = Depends(get_current_user)):
     }
 
 
-# ── Admin Only (RBAC test) ────────────────────────────────────────────────────
+# ── Admin Only ────────────────────────────────────────────────────────────────
 
 @router.get("/admin-only")
 async def admin_only(current_user: User = Depends(require_roles(["admin"]))):
     return {"message": f"Welcome Admin — {current_user.email}"}
 
 
-# ── Create Admin (admin-only) ─────────────────────────────────────────────────
+# ── Create Admin ──────────────────────────────────────────────────────────────
 
 @router.post("/create-admin", status_code=status.HTTP_201_CREATED)
 async def create_admin(
@@ -226,7 +196,5 @@ async def create_admin(
     )
 
     db.add(admin_user)
-    await db.commit()
-    await db.refresh(admin_user)
 
     return {"message": f"Admin {payload.email} created successfully"}

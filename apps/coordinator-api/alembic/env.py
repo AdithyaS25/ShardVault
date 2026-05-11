@@ -1,15 +1,3 @@
-"""
-alembic/env.py — ShardLock Coordinator API
-===========================================
-Alembic migration environment.
-
-Key things configured here:
-  1. Async engine (required for asyncpg / SQLAlchemy async)
-  2. URL pulled from .env via app settings (not hardcoded in alembic.ini)
-  3. All models imported so autogenerate can detect schema changes
-  4. PgBouncer fix applied (statement_cache_size=0)
-"""
-
 import asyncio
 from logging.config import fileConfig
 
