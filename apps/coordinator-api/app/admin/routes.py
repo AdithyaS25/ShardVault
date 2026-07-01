@@ -1,21 +1,3 @@
-"""
-admin/routes.py — ShardLock Coordinator API
-============================================
-Admin monitoring dashboard endpoints. Implements §2.7 Admin Dashboard.
-
-Registered in main.py as:
-    from app.admin.routes import router as admin_router
-    app.include_router(admin_router, prefix="/api/v1")
-
-Endpoints:
-    GET /api/v1/admin/stats          — system-wide counts + audit breakdown
-    GET /api/v1/admin/users          — paginated user list with vault counts
-    GET /api/v1/admin/users/{id}     — single user detail + recent activity
-    GET /api/v1/admin/nodes/health   — live health check of all 4 share nodes
-
-All endpoints: admin role required.
-"""
-
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -115,10 +97,10 @@ async def admin_user_detail(
 @router.get(
     "/nodes/health",
     response_model=NodeHealthResponse,
-    summary="Live share node health — admin only",
+    summary="Live share node health",
 )
 async def admin_nodes_health(
-    current_user: User                  = Depends(require_roles(["admin"])),
+    current_user: User                  = Depends(require_roles(["admin", "user"])),
     orchestrator: ShareNodeOrchestrator = Depends(get_orchestrator),
 ):
     """
@@ -127,6 +109,9 @@ async def admin_nodes_health(
 
     This is the most visually impactful endpoint for the demo —
     shows 4 distinct node URLs and their live status.
+
+    NOTE: Opened to all authenticated roles (not admin-only) since this is
+    read-only status info, not sensitive admin data like /stats or /users.
     """
     node_statuses = await orchestrator.node_health_status()
 
