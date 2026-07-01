@@ -1,13 +1,23 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import {  Vault, Cpu, GitBranch, ChevronRight  } from 'lucide-react'
+import { Vault, Cpu, GitBranch, ChevronRight } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { vaultApi } from '@/api/vault'
+import { apiClient } from '@/api/client'  // adjust to your actual axios/fetch instance
 import { Badge } from '@/components/ui/badge'
+
+type NodeHealth = { node_id: string; url: string; online: boolean }
+
+type SystemStatus = {
+  coordinator: 'online' | 'offline'
+  nodes: NodeHealth[]
+  nodesOnline: number
+}
 
 export default function DashboardPage() {
   const { user } = useAuth()
   const [vaultCount, setVaultCount] = useState<number | null>(null)
+  const [system, setSystem] = useState<SystemStatus | null>(null)
 
   useEffect(() => {
     vaultApi.list(1, 1)
@@ -15,12 +25,56 @@ export default function DashboardPage() {
       .catch(() => setVaultCount(0))
   }, [])
 
+  useEffect(() => {
+    apiClient.get('/admin/nodes/health')
+  .then(r => {
+    const nodes: NodeHealth[] = r.data.nodes  // ← .nodes not r.data directly
+    setSystem({
+      coordinator: 'online',
+      nodes,
+      nodesOnline: nodes.filter(n => n.online).length,
+    })
+  })
+      .catch(() => {
+        setSystem({
+          coordinator: 'offline',
+          nodes: [],
+          nodesOnline: 0,
+        })
+      })
+  }, [])
+
   const stats = [
-    { label: 'Vault entries',  value: vaultCount ?? '—', sub: 'encrypted secrets' },
-    { label: 'Shamir shares',  value: vaultCount != null ? vaultCount * 4 : '—', sub: 'N=4 per entry' },
-    { label: 'Threshold',      value: 'K=3', sub: 'min shares to reconstruct' },
-    { label: 'Encryption',     value: 'AES-256', sub: 'GCM authenticated' },
+    { label: 'Vault entries',  value: vaultCount ?? '—',                          sub: 'encrypted secrets' },
+    { label: 'Shamir shares',  value: vaultCount != null ? vaultCount * 4 : '—',  sub: 'N=4 per entry' },
+    { label: 'Threshold',      value: 'K=3',                                       sub: 'min shares to reconstruct' },
+    { label: 'Encryption',     value: 'AES-256',                                   sub: 'GCM authenticated' },
   ]
+
+  const nodesOnline  = system?.nodesOnline ?? 0
+  const nodeStatus   = system == null ? 'checking' : nodesOnline === 4 ? 'online' : nodesOnline > 0 ? 'degraded' : 'offline'
+  const nodeDetail   = system == null ? 'Checking...' : `${nodesOnline}/4 nodes online`
+  const coordDetail  = system == null ? 'Checking...' : system.coordinator === 'online' ? 'Connected' : 'Unreachable'
+
+  const systemRows = [
+    { label: 'Coordinator API', status: system?.coordinator ?? 'offline', detail: coordDetail },
+    { label: 'Share Node 1–4',  status: nodeStatus,                       detail: nodeDetail },
+    { label: 'Database',        status: 'online' as const,                 detail: 'Supabase PostgreSQL' },
+  ]
+
+  const badgeVariant = (s: string) => {
+    if (s === 'online')    return 'success'
+    if (s === 'degraded')  return 'warning'
+    if (s === 'checking')  return 'secondary'
+    return 'warning'
+  }
+
+  const dotColor = (s: string) => {
+    if (s === 'online')   return 'bg-emerald-400'
+    if (s === 'degraded') return 'bg-amber-400'
+    if (s === 'checking') return 'bg-slate-400'
+    return 'bg-amber-400'
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-8 page-enter">
@@ -73,6 +127,7 @@ export default function DashboardPage() {
             </div>
             <Badge variant="secondary" className="text-[10px]">Soon</Badge>
           </div>
+
         </div>
       </div>
 
@@ -80,19 +135,15 @@ export default function DashboardPage() {
       <div className="space-y-3">
         <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest">System</p>
         <div className="glass rounded-lg divide-y divide-border">
-          {[
-            { label: 'Coordinator API',  status: 'online',  detail: 'localhost:8000' },
-            { label: 'Share Node 1–4',   status: 'offline', detail: 'Not configured' },
-            { label: 'Database',         status: 'online',  detail: 'Supabase PostgreSQL' },
-          ].map(({ label, status, detail }) => (
+          {systemRows.map(({ label, status, detail }) => (
             <div key={label} className="flex items-center justify-between px-4 py-3">
               <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${status === 'online' ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse_slow`} />
+                <div className={`w-2 h-2 rounded-full ${dotColor(status)} animate-pulse_slow`} />
                 <p className="text-sm font-medium">{label}</p>
               </div>
               <div className="flex items-center gap-2">
                 <p className="text-xs text-muted-foreground font-mono">{detail}</p>
-                <Badge variant={status === 'online' ? 'success' : 'warning'}>{status}</Badge>
+                <Badge variant={badgeVariant(status) as any}>{status}</Badge>
               </div>
             </div>
           ))}
@@ -104,6 +155,7 @@ export default function DashboardPage() {
         <GitBranch className="w-3.5 h-3.5" />
         feature/frontend-vault
       </div>
+
     </div>
   )
 }
