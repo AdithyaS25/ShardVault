@@ -1,15 +1,3 @@
-"""
-core/dependencies.py — ShardLock Coordinator API
-=================================================
-Shared FastAPI dependencies used across all route modules.
-
-FIX APPLIED:
-  - get_db() was defined in BOTH dependencies.py AND auth/routes.py.
-    This caused two separate DB sessions per request when both were used.
-    Removed it from auth/routes.py — single source of truth here.
-    All routes import get_db from app.core.dependencies.
-"""
-
 from typing import List
 
 from fastapi import Depends, HTTPException, status
@@ -31,9 +19,15 @@ async def get_db():
     """
     Yield an async DB session.
     Single definition — import this everywhere, never redefine locally.
+    Commits on clean exit, rolls back on exception.
     """
     async with AsyncSessionLocal() as session:
-        yield session
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
 
 
 # ── JWT Auth ──────────────────────────────────────────────────────────────────
