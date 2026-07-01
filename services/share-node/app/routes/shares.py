@@ -1,19 +1,3 @@
-"""
-routes/shares.py — Share Node Service
-=======================================
-Internal API endpoints per §2.4 Share Node Internal API Specification.
-
-All endpoints:
-  - Require internal service token (coordinator-to-node auth)
-  - Are prefixed /internal (set in main.py)
-  - Are NOT accessible by end users
-
-Endpoints:
-  POST   /internal/store-share              — store a share for a vault entry
-  GET    /internal/retrieve-share/{vault_entry_id} — retrieve share by vault entry
-  DELETE /internal/delete-share/{vault_entry_id}   — delete share for vault entry
-"""
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -38,23 +22,12 @@ router = APIRouter(tags=["Internal Share Storage"])
     "/store-share",
     response_model=StoreShareResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Store a secret share",
 )
 async def store_share(
     body: StoreShareRequest,
     db: AsyncSession = Depends(get_db),
     _: bool = Depends(verify_internal_token),
 ):
-    """
-    Store one Shamir share for a vault entry.
-
-    Called by coordinator during vault creation flow:
-      coordinator → POST /internal/store-share → this node
-
-    Rejects duplicate vault_entry_id — each entry gets exactly one share
-    per node. Coordinator must DELETE before re-storing (update flow).
-    """
-    # Check for existing share for this vault entry
     result = await db.execute(
         select(Share).where(Share.vault_entry_id == body.vault_entry_id)
     )
@@ -73,8 +46,9 @@ async def store_share(
     )
 
     db.add(share)
-    await db.commit()
+    await db.flush()
     await db.refresh(share)
+    # no commit — get_db commits on exit
 
     return StoreShareResponse(
         success=True,
@@ -84,27 +58,15 @@ async def store_share(
     )
 
 
-# ── GET /internal/retrieve-share/{vault_entry_id} ────────────────────────────
-
 @router.get(
     "/retrieve-share/{vault_entry_id}",
     response_model=RetrieveShareResponse,
-    summary="Retrieve a secret share",
 )
 async def retrieve_share(
     vault_entry_id: str,
     db: AsyncSession = Depends(get_db),
     _: bool = Depends(verify_internal_token),
 ):
-    """
-    Retrieve the share for a given vault entry.
-
-    Called by coordinator during vault reconstruction flow:
-      coordinator → GET /internal/retrieve-share/{id} → this node
-
-    Returns the (x_index, y_value) pair needed for Lagrange interpolation.
-    Coordinator collects K=3 such responses from 3 different nodes.
-    """
     result = await db.execute(
         select(Share).where(Share.vault_entry_id == vault_entry_id)
     )
@@ -125,27 +87,15 @@ async def retrieve_share(
     )
 
 
-# ── DELETE /internal/delete-share/{vault_entry_id} ───────────────────────────
-
 @router.delete(
     "/delete-share/{vault_entry_id}",
     response_model=DeleteShareResponse,
-    summary="Delete a secret share",
 )
 async def delete_share(
     vault_entry_id: str,
     db: AsyncSession = Depends(get_db),
     _: bool = Depends(verify_internal_token),
 ):
-    """
-    Delete the share for a given vault entry.
-
-    Called by coordinator when:
-      - User deletes a vault entry (§1.5: DELETE vault removes metadata and shares)
-      - Coordinator needs to re-store an updated share
-
-    Returns success even if share didn't exist — idempotent delete.
-    """
     result = await db.execute(
         select(Share).where(Share.vault_entry_id == vault_entry_id)
     )
@@ -153,7 +103,7 @@ async def delete_share(
 
     if share:
         await db.delete(share)
-        await db.commit()
+        # no commit — get_db commits on exit
         message = "Share deleted successfully"
     else:
         message = "Share not found — nothing to delete"

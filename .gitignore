@@ -20,4 +20,6 @@ Thumbs.db
 .env.node3
 .env.node4
 .env
+.env.local
+
 
