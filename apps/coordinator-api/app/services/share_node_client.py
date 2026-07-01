@@ -7,9 +7,12 @@ import httpx
 logger = logging.getLogger(__name__)
 
 # §2.5 Inter-service communication constants
-REQUEST_TIMEOUT_SECONDS = 3
+# NOTE: Render free-tier instances spin down after ~15 min idle and take
+# 15-60s to cold-start. connect timeout stays short (fail fast on real
+# network/DNS problems); read timeout is generous to survive a cold boot.
+REQUEST_TIMEOUT = httpx.Timeout(connect=10.0, read=45.0, write=10.0, pool=10.0)
 MAX_RETRIES             = 2
-RETRY_DELAY_SECONDS     = 0.5
+RETRY_DELAY_SECONDS     = 1.0
 
 
 @dataclass
@@ -41,7 +44,7 @@ class ShareNodeClient:
 
         for attempt in range(1, MAX_RETRIES + 2):  # attempts: 1, 2, 3
             try:
-                async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
+                async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
                     response = await client.request(
                         method,
                         url,
@@ -114,7 +117,7 @@ class ShareNodeClient:
 
     async def health_check(self) -> bool:
         try:
-            async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
+            async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
                 response = await client.get(f"{self.config.url}/health")
                 return response.status_code == 200
         except Exception:
